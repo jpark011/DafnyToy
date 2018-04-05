@@ -7,7 +7,10 @@ method qsort(a:array<int>, l:nat, u:nat)
   modifies a;
 
   ensures sorted_between(a, l, u+1);
-
 {
-  // complete the code for quicksort and verify the implementation
+  var pivot = partition(a, l, u);
+  // left
+  qsort(a, l, pivot - 1);
+  // right
+  qsort(a, pivot + 1, u)
 }
