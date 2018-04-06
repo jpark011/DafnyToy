@@ -10,7 +10,12 @@ method qsort(a:array<int>, l:nat, u:nat)
 {
   var pivot = partition(a, l, u);
   // left
-  qsort(a, l, pivot - 1);
+  if (l < pivot) {
+    qsort(a, l, pivot - 1);
+  }
+
   // right
-  qsort(a, pivot + 1, u)
+  if (pivot < u) {
+    qsort(a, pivot + 1, u)
+  }
 }

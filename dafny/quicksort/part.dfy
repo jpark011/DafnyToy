@@ -40,8 +40,10 @@ method partition(a:array<int>, l:nat, u:nat) returns (pivot:int)
     invariant u < a.Length -1 ==> beq(old(a[..]), a[..], u+1, a.Length - 1);
     invariant u < a.Length -1 ==> partitioned(a, l, u, u+1, a.Length-1);
 
-    invariant l <= i ==> partitioned(a, l, i, u, u);
-    invariant i < j ==> partitioned(a, u, u, i+1, j);
+    // invariant forall k :: l <= k <= i ==> a[k] <= pv;
+    // invariant forall k :: i < k < j ==> pv <= a[k];
+    invariant l < i + 1 ==> partitioned(a, l, i, i+1, i+1);
+    invariant i + 1 < j ==> partitioned(a, i+1, i+1, i+2, j);
 
     decreases u - j;
   {
