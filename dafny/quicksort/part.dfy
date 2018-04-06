@@ -6,19 +6,19 @@ method choose(l:nat, u:nat) returns (rv: nat)
 {assume(l <= rv <= u);}
 
 method partition(a:array<int>, l:nat, u:nat) returns (pivot:int)
-  modifies a;
   requires a != null;
   requires l <= u < a.Length;
   requires l > 0 ==> partitioned(a, 0, l-1, l, u);
   requires u < a.Length -1 ==> partitioned(a, l, u, u+1, a.Length-1);
-
-  ensures l <= pivot <= u;
+  modifies a;
 
   ensures l > 0 ==> beq(old(a[..]), a[..], 0, l-1);
   ensures l > 0 ==> partitioned(a, 0, l-1, l, u);
 
   ensures u < a.Length -1 ==> beq(old(a[..]), a[..], u+1, a.Length - 1);
   ensures u < a.Length -1 ==> partitioned(a, l, u, u+1, a.Length-1);
+
+  ensures l <= pivot <= u;
 
   ensures pivot > l ==> partitioned(a, l, pivot-1, pivot, pivot);
   ensures pivot < u ==> partitioned(a, pivot, pivot, pivot+1, u);
@@ -40,10 +40,9 @@ method partition(a:array<int>, l:nat, u:nat) returns (pivot:int)
     invariant u < a.Length -1 ==> beq(old(a[..]), a[..], u+1, a.Length - 1);
     invariant u < a.Length -1 ==> partitioned(a, l, u, u+1, a.Length-1);
 
-    // invariant forall k :: l <= k <= i ==> a[k] <= pv;
-    // invariant forall k :: i < k < j ==> pv <= a[k];
-    invariant l < i + 1 ==> partitioned(a, l, i, i+1, i+1);
-    invariant i + 1 < j ==> partitioned(a, i+1, i+1, i+2, j);
+    invariant forall k :: l <= k <= i ==> a[k] <= pv;
+    invariant pv == a[u];
+    invariant forall k :: i < k < j ==> pv <= a[k];
 
     decreases u - j;
   {
