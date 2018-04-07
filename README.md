@@ -1,14 +1,13 @@
-# ECE453/CS447: Assignment 3
+# Dafny toy
+Deductively verifies a _program_ using Hoare Logic & First Order Logic
 
-Replace FIRST_NAME, LAST_NAME, WATIAM, and STUDENT_ID, EMAIL in
-`user.yml` by your first and last name, WatIAM id, student number, and
-email, respectively. Note that your WatIAM id is the ID you use to
-login to Quest. Use plain ASCII characters as much as possible.
+### Dafny engine
+Self-Verifying Prgrogramming Language made by Microsoft [Dafny](https://github.com/Microsoft/dafny)
 
-Do not change the format of the file. We will parse it
-automatically. Only enter the information requested.
-
-Commit your changes and submit on GitHub.
-
-You can validate your yaml file using online YAML parser:
-http://yaml-online-parser.appspot.com/
+### Basics
+{Pre-cond} _program_ {Post-cond}
+_for loops:_
+{Pre-cond} {Invariant} {Invariant and cond} _loop_ {Invariant} {Invariant and not cond} {Post-cond}
+#### _Tips_
+- __Specs__ are the most important things!! (without specs, impossible to verify)
+- __Invariant__ is hard to find, but use your intuition :)
