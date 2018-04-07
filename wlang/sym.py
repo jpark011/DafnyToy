@@ -46,12 +46,12 @@ class SymState(object):
         """Add constraints to the path condition"""
         self.path.extend (exp)
         self._solver.append (exp)
-        
+
     def is_error (self):
         return self._is_error
     def mk_error (self):
         self._is_error = True
-        
+
     def is_empty (self):
         """Check whether the current symbolic state has any concrete states"""
         res = self._solver.check ()
@@ -69,23 +69,23 @@ class SymState(object):
         for (k, v) in self.env.items():
             st.env [k] = model.eval (v)
         return st
-        
+
     def fork(self):
         """Fork the current state into two identical states that can evolve separately"""
         child = SymState ()
         child.env = dict(self.env)
         child.add_pc (*self.path)
-        
+
         return (self, child)
-    
+
     def __repr__ (self):
         return str(self)
-        
+
     def to_smt2 (self):
         """Returns the current state as an SMT-LIB2 benchmark"""
         return self._solver.to_smt2 ()
-    
-        
+
+
     def __str__ (self):
         buf = cStringIO.StringIO ()
         for k, v in self.env.iteritems():
@@ -96,9 +96,9 @@ class SymState(object):
         buf.write ('pc: ')
         buf.write (str (self.path))
         buf.write ('\n')
-            
+
         return buf.getvalue ()
-                   
+
 class SymExec (wlang.ast.AstVisitor):
     def __init__(self, loop_bound=10):
         self._global_loop_bound = loop_bound
@@ -110,13 +110,13 @@ class SymExec (wlang.ast.AstVisitor):
 
     def visit_IntVar (self, node, *args, **kwargs):
         return kwargs['state'].env [node.name]
-    
+
     def visit_BoolConst(self, node, *args, **kwargs):
         return z3.BoolVal (node.val)
 
     def visit_IntConst (self, node, *args, **kwargs):
         return z3.IntVal (node.val)
-    
+
     def visit_RelExp (self, node, *args, **kwargs):
         lhs = self.visit (node.arg (0), *args, **kwargs)
         rhs = self.visit (node.arg (1), *args, **kwargs)
@@ -125,17 +125,17 @@ class SymExec (wlang.ast.AstVisitor):
         if node.op == '=': return lhs == rhs
         if node.op == '>=': return lhs >= rhs
         if node.op == '>': return lhs > rhs
-        
+
         assert False
 
     def visit_BExp (self, node, *args, **kwargs):
         kids = [self.visit (a, *args, **kwargs) for a in node.args]
-        
+
         if node.op == 'not':
             assert node.is_unary ()
             assert len (kids) == 1
             return z3.Not (kids[0])
-        
+
         fn = None
         base = None
         if node.op == 'and':
@@ -147,7 +147,7 @@ class SymExec (wlang.ast.AstVisitor):
 
         assert fn is not None
         return reduce (fn, kids, base)
-        
+
     def visit_AExp (self, node, *args, **kwargs):
         kids = [self.visit (a, *args, **kwargs) for a in node.args]
 
@@ -156,7 +156,7 @@ class SymExec (wlang.ast.AstVisitor):
 
         if node.op == '+':
             fn = lambda x, y: x + y
-            
+
         elif node.op == '-':
             fn = lambda x, y: x - y
 
@@ -165,21 +165,21 @@ class SymExec (wlang.ast.AstVisitor):
 
         elif node.op == '/':
             fn = lambda x, y : x / y
-            
-        
+
+
         assert fn is not None
         return reduce (fn, kids)
-        
+
     def visit_SkipStmt (self, node, *args, **kwargs):
         yield kwargs['state']
-    
+
     def visit_PrintStateStmt (self, node, *args, **kwargs):
         print (kwargs['state'])
         yield kwargs['state']
 
     def visit_AsgnStmt (self, node, *args, **kwargs):
         val = self.visit (node.rhs, *args, **kwargs)
-        
+
         st = kwargs['state']
         name = node.lhs.name
         sym_val = z3.FreshInt (name)
@@ -193,14 +193,14 @@ class SymExec (wlang.ast.AstVisitor):
         st = kwargs['state']
         then_branch, else_branch = st.fork ()
         then_branch.add_pc (cond_val)
-        
+
         if not then_branch.is_empty ():
             # cover all path under then branch
             nkwargs = dict (kwargs)
             nkwargs['state'] = then_branch
             for out in self.visit (node.then_stmt, *args, **nkwargs):
                 yield out
-            
+
         else_branch.add_pc (z3.Not (cond_val))
         if not else_branch.is_empty ():
             if node.has_else ():
@@ -208,16 +208,16 @@ class SymExec (wlang.ast.AstVisitor):
                 nkwargs['state'] = else_branch
                 for out in self.visit (node.else_stmt, *args, **nkwargs):
                    yield out
-                   
-            else:        
+
+            else:
                 yield else_branch
-            
+
     def _defs (self, node):
         """ Returns the set of all varialbes modified (defined) by a given node """
         dVisitor = UndefVisitor ()
         dVisitor.check (node)
         return dVisitor.get_defs ()
-        
+
 
     def visit_WhileStmt (self, node, *args, **kwargs):
         """ Symbolic execution of while loops """
@@ -227,33 +227,35 @@ class SymExec (wlang.ast.AstVisitor):
         else:
             for out in self.visit_WhileStmt_noinv (node, *args, **kwargs):
                 yield out
-                
+
     def visit_WhileStmt_inv (self, node, *args, **kwargs):
         """" Symbolic execution of while loops with invariants """
-            
+
         # evaluate invariant before the loop
         inv_pre = z3.simplify (self.visit (node.inv, *args, **kwargs))
-        
+
         # fork symbolic state to evaluate the invariant in the pre-condition
         pre_st, loop_st = kwargs['state'].fork ()
 
         pre_st.add_pc (z3.Not (inv_pre))
+        # assert inv fails at the start
         if not pre_st.is_empty ():
             print ('Invariant not true on loop entry')
             print (node.inv)
             print (pre_st)
-        
+            pre_st.mk_error()
+
         # havoc all variables modified by the loop
         for v in self._defs (node.body):
             loop_st.env [v.name] = z3.FreshInt (v.name)
-            
+
         # evaluate invariant after havoc and assume it
         inv_pre = z3.simplify (self.visit (node.inv, *args, state=loop_st))
         loop_st.add_pc (inv_pre)
-    
+
         # evaluate loop condition
         cond_val = self.visit (node.cond, *args, state=loop_st);
-        
+
         # one state enters the loop, one exits
         enter_st, exit_st = loop_st.fork ()
 
@@ -261,7 +263,7 @@ class SymExec (wlang.ast.AstVisitor):
         enter_st.add_pc (cond_val)
         # if exit loop, loop condition is false
         exit_st.add_pc (z3.Not (cond_val))
-        
+
         # if loop condition can be satisfied, check invariant preserved by loop body
         if not enter_st.is_empty ():
             # do loop body, might produce many new states
@@ -269,26 +271,28 @@ class SymExec (wlang.ast.AstVisitor):
                 # check that invariant holds at the end of each body
                 inv_post = z3.simplify (self.visit (node.inv, *args, state=out))
                 out.add_pc (z3.Not (inv_post))
+                # assert inv fails at the end
                 if not out.is_empty ():
                     print ('Invariant does not hold on loop exit')
                     print ('inv:', node.inv)
                     print ('inv_post', inv_post)
                     print ('out', out)
                     print ('pc', z3.And (out.path).sexpr ())
+                    out.mk_error()
 
         # if negation of loop condition is satisfied, continue execution after the loop
         if not exit_st.is_empty ():
             yield exit_st
-        
-            
+
+
     def visit_WhileStmt_noinv (self, node, *args, **kwargs):
         """ Symbolic execution of while loops with no invariants """
         bound = kwargs.get ('loop_bound')
         if bound is None:
             bound = self._global_loop_bound
-            
+
         cond_val = self.visit (node.cond, *args, **kwargs);
-        
+
         # one state enters the loop, one exits
         enter_st, exit_st = kwargs['state'].fork ()
 
@@ -296,7 +300,7 @@ class SymExec (wlang.ast.AstVisitor):
         enter_st.add_pc (cond_val)
         # if exit loop, loop condition is false
         exit_st.add_pc (z3.Not (cond_val))
-        
+
         # if loop condition can be satisfied and we have not tripped loop bound
         if bound > 0 and not enter_st.is_empty ():
             # do loop body, might produce many new states
@@ -308,7 +312,7 @@ class SymExec (wlang.ast.AstVisitor):
         # the loop immediatelly
         if not exit_st.is_empty ():
             yield exit_st
-            
+
 
     def visit_AssertStmt (self, node, *args, **kwargs):
         st = kwargs['state']
@@ -319,11 +323,11 @@ class SymExec (wlang.ast.AstVisitor):
             print ('[symexec]: Error at', node, 'with', false_state)
             print ('[symexec]: Concrete state', false_state.pick_concerete())
             false_state.mk_error ()
-            
+
         true_state.add_pc (cond_val)
         if not true_state.is_empty ():
             yield true_state
-    
+
     def visit_AssumeStmt (self, node, *args, **kwargs):
         st = kwargs['state']
         cond_val = self.visit (node.cond, *args, **kwargs)
@@ -341,14 +345,14 @@ class SymExec (wlang.ast.AstVisitor):
         st = kwargs['state']
         for out in self._run_Stmts (node.stmts, st):
             yield out
-        
+
     def _run_Stmts (self, stmts, st):
         """Recursively run a sequential list of statements"""
-        
+
         # empty sequence is just like a skip
         if len (stmts) == 0:
             yield st
-            
+
         # a single statement is simply executed
         elif len (stmts) == 1:
             for out in self.run (stmts [0], st):
@@ -360,7 +364,7 @@ class SymExec (wlang.ast.AstVisitor):
             for out1 in self.run (stmts [0], st):
                 for out2 in self._run_Stmts (stmts[1:], out1):
                     yield out2
-    
+
 def _parse_args ():
     import argparse
     ap = argparse.ArgumentParser (prog='sym',
@@ -370,7 +374,7 @@ def _parse_args ():
                      type=int, default=10)
     args = ap.parse_args ()
     return args
-    
+
 def main ():
     args = _parse_args ()
     ast = wlang.ast.parse_file (args.in_file)
@@ -391,4 +395,3 @@ def main ():
 
 if __name__ == '__main__':
     sys.exit (main ())
-                    

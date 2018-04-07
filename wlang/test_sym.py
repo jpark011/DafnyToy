@@ -32,5 +32,200 @@ class TestSym (unittest.TestCase):
         st = wlang.sym.SymState ()
         out = [s for s in sym.run (ast1, st)]
         self.assertEquals (len(out), 1)
-        
-        
+
+    def test_00 (self):
+        prg1 = "x := 10; print_state"
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_01 (self):
+        prg1 = "havoc x; assume x > 10"
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_02 (self):
+        prg1 = "x := 10; y := 11; z := x + y; assert z = x + y"
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_03 (self):
+        prg1 = """
+            havoc x, y;
+            z := x + y;
+            if x > y then
+              z := x
+            else
+              z := y
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 2)
+
+    def test_04 (self):
+        prg1 = """
+            x:=0;
+            y:=0;
+            z:=0;
+            havoc a, b, c;
+
+            if not a = 0 then {
+              x := -2
+            };
+
+            if b < 5 then {
+              if a = 0 and not(c = 0) then
+                y := 1;
+              z := 2
+            }
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 5)
+
+    def test_05 (self):
+        prg1 = """
+            x := 10;
+            y := 5;
+              while x > 0
+              do {
+                if x > y then
+                  x := x-1
+              }
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 0)
+
+    def test_06 (self):
+        prg1 = """
+            x := (1 + 2) / 3 - 3 * 5;
+            skip
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_07 (self):
+        prg1 = """
+            havoc x, y;
+            if x >= y or x <= y then
+              z := x
+            else
+              z := y;
+
+            if true or x > y then
+                 z := x
+               else
+                 z := y
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_08 (self):
+        prg1 = """
+            havoc x, y;
+            assume y >= 0;
+            c := 0;
+            r := x;
+            while c < y
+            inv c <= y and r = x + c
+            do
+            {
+              r := r + 1;
+              c := c + 1
+            };
+            assert r = x + y
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (reduce((lambda x, y: x or y), map((lambda x: x.is_error()), out)), False)
+        self.assertEquals (len(out), 1)
+
+    def test_09 (self):
+        prg1 = """
+            havoc x, y;
+            assume y >= 0;
+            c := 0;
+            r := x;
+            while c < y
+            inv c <= y
+            do
+            {
+              r := r + 1;
+              c := c + 1
+            };
+            assert r = x + y
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_10 (self):
+        prg1 = """
+            havoc x, y;
+            assume y >= 0;
+            c := 0;
+            r := x;
+            while c < y
+            inv c < y and r = x + c
+            do
+            {
+              r := r + 1;
+              c := c + 1
+            };
+            assert r = x + y
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 0)
+
+    def test_11 (self):
+        prg1 = """
+            x := 10;
+            y := 5;
+              while x > 0
+              do {
+                  x := x-1
+              }
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)
+
+    def test_12 (self):
+        prg1 = """
+            skip
+        """
+        ast1 = ast.parse_string (prg1)
+        sym = wlang.sym.SymExec ()
+        st = wlang.sym.SymState ()
+        out = [s for s in sym.run (ast1, st)]
+        self.assertEquals (len(out), 1)

@@ -3,7 +3,7 @@ include "part.dfy"
 
 method qsort(a:array<int>, l:nat, u:nat)
   requires a != null;
-  requires l <= u < a.Length;
+  requires 0 <= l <= u < a.Length;
   requires l > 0 ==> partitioned(a, 0, l-1, l, u);
   requires u < a.Length -1 ==> partitioned(a, l, u, u+1, a.Length-1);
   modifies a;
